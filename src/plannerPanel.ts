@@ -105,25 +105,25 @@ export class PlannerPanel {
     }
     return ''; // fallback: AI uses its own knowledge
   }
-
   private async _runGeneration(data: any, apiKey: string) {
-    const { courseCode, courseName, portion, examType, book, days, campus, moduleWeightage } = data;
+    const { courseCode, courseName, portion, examType, books, days, campus, moduleWeightage } = data;
+    const bookList: string[] = Array.isArray(books) ? books : [books].filter(Boolean);
 
     // Notify UI that we are fetching real papers
-    this._panel.webview.postMessage({ command: 'loadMsg', text: 'Fetching real papers from CodeChef VIT GitHub…' });
+    this._panel.webview.postMessage({ command: 'loadMsg', text: 'Fetching real papers from CodeChef VIT GitHub...' });
     const papersContext = await this._fetchCodeChefPapers(courseCode);
-    this._panel.webview.postMessage({ command: 'loadMsg', text: 'Analysing PYQ patterns with Gemini…' });
+    this._panel.webview.postMessage({ command: 'loadMsg', text: 'Analysing PYQ patterns with Gemini...' });
 
     const patternNote = 'IMPORTANT: This exam has 10 questions worth 10 marks each. ALL predicted questions must be 10-mark questions only.';
     const qType = '10-mark';
 
     const weightageNote = moduleWeightage && moduleWeightage.length > 0
-      ? `\n\nMODULE-WISE WEIGHTAGE — follow this distribution EXACTLY when generating predicted questions:\n${moduleWeightage.map((m: any) => `  - ${m.module}: ${m.questions} question(s) x 10 marks`).join('\n')}\nThe total predicted questions must respect the above unit distribution precisely.`
+      ? `\n\nMODULE-WISE WEIGHTAGE - follow this distribution EXACTLY when generating predicted questions:\n${moduleWeightage.map((m: any) => `  - ${m.module}: ${m.questions} question(s) x 10 marks`).join('\n')}\nThe total predicted questions must respect the above unit distribution precisely.`
       : '';
 
     const papersFoundNote = papersContext
       ? papersContext
-      : `\n\nNo papers found on GitHub for this course code. Use your knowledge of ${courseName} PYQ patterns from vitpapervault.in and papers.codechefvit.com, restricting to 2023-2024 and 2024-2025 academic years only.`;
+      : `\n\nNo papers found on GitHub for this course code. Use your knowledge of ${courseName} PYQ patterns from papers.codechefvit.com, restricting to 2023-2024 and 2024-2025 academic years only.`;
 
     const prompt = `You are an expert VIT exam coach for ECE students at VIT ${campus}. The student is preparing for:
 
@@ -131,7 +131,7 @@ Course: ${courseName} (${courseCode})
 Exam: ${examType}
 Exam Pattern: 10 questions x 10 marks each
 Portion: ${portion}
-Textbook: ${book}
+Reference Books: ${bookList.join(', ')}
 Days available: ${days}
 Campus: VIT ${campus}
 
@@ -324,7 +324,6 @@ Include 8-12 topics, exactly ${days} days in plan (3 tasks/day), exactly 10 pred
   <span>Find VIT PYQ papers to cross-reference:</span>
   <div style="display:flex;gap:14px;">
     <a href="https://papers.codechefvit.com" target="_blank">CodeChef VIT Papers</a>
-    <a href="https://vitpapervault.in" target="_blank">VIT PaperVault</a>
     <a href="https://github.com/Codechef-VIT/VIT-Papers" target="_blank">GitHub Repo</a>
   </div>
 </div>
@@ -352,8 +351,19 @@ Include 8-12 topics, exactly ${days} days in plan (3 tasks/day), exactly 10 pred
     <div id="moduleRows"></div>
   </div>
 
-  <div class="form-grid3">
-    <div><label>Textbook</label><input id="book" type="text" placeholder="e.g. Oppenheim & Willsky" /></div>
+  <div style="margin-bottom:12px;">
+    <label style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+      <span style="font-size:11px;color:var(--vscode-descriptionForeground);">Reference books <span style="font-size:10px;opacity:0.6;">(add all books used for this course)</span></span>
+      <button class="btn btn-secondary" onclick="addBook()" style="font-size:11px;padding:3px 10px;">+ Add book</button>
+    </label>
+    <div id="bookRows">
+      <div class="module-row" id="book-1">
+        <input type="text" placeholder="e.g. Mazidi - The 8051 Microcontroller" class="book-input" style="flex:1;" />
+        <button onclick="removeBook('book-1')" style="background:transparent;border:none;color:var(--vscode-descriptionForeground);cursor:pointer;font-size:14px;padding:0 4px;">x</button>
+      </div>
+    </div>
+  </div>
+  <div class="form-grid">
     <div><label>Campus</label>
       <select id="campus">
         <option>Vellore</option>
@@ -401,12 +411,12 @@ Include 8-12 topics, exactly ${days} days in plan (3 tasks/day), exactly 10 pred
   const vscode = acquireVsCodeApi();
 
   const loadMsgs = [
-    'Fetching PYQ papers from PaperVault…',
-    'Scanning question frequency…',
-    'Cross-referencing syllabus…',
-    'Mapping textbook chapters…',
-    'Predicting exam questions…',
-    'Building day-by-day plan…'
+    'Fetching real papers from CodeChef VIT GitHub...',
+    'Scanning question frequency...',
+    'Cross-referencing syllabus...',
+    'Mapping textbook chapters...',
+    'Predicting exam questions...',
+    'Building day-by-day plan...'
   ];
   let loadTicker;
 
@@ -418,6 +428,26 @@ Include 8-12 topics, exactly ${days} days in plan (3 tasks/day), exactly 10 pred
   }
 
   function setApiKey() { vscode.postMessage({ command: 'setApiKey' }); }
+
+  let bookCount = 1;
+  function addBook() {
+    bookCount++;
+    const id = 'book-' + bookCount;
+    const row = document.createElement('div');
+    row.className = 'module-row';
+    row.id = id;
+    row.innerHTML = '<input type="text" placeholder="e.g. Morris Mano - Digital Design" class="book-input" style="flex:1;" />' +
+      '<button onclick="removeBook(\'' + id + '\')" style="background:transparent;border:none;color:var(--vscode-descriptionForeground);cursor:pointer;font-size:14px;padding:0 4px;">x</button>';
+    document.getElementById('bookRows').appendChild(row);
+  }
+  function removeBook(id) {
+    const el = document.getElementById(id);
+    if (el && document.querySelectorAll('.book-input').length > 1) el.remove();
+  }
+  function getBooks() {
+    return Array.from(document.querySelectorAll('.book-input'))
+      .map(el => el.value.trim()).filter(v => v.length > 0);
+  }
 
   let moduleCount = 0;
 
@@ -453,18 +483,19 @@ Include 8-12 topics, exactly ${days} days in plan (3 tasks/day), exactly 10 pred
   }
 
   function generate() {
+    const books = getBooks();
     const data = {
       courseCode: document.getElementById('courseCode').value.trim(),
       courseName: document.getElementById('courseName').value.trim(),
       portion: document.getElementById('portion').value.trim(),
       examType: document.getElementById('examType').value,
       moduleWeightage: getModuleWeightage(),
-      book: document.getElementById('book').value.trim(),
+      books: books,
       campus: document.getElementById('campus').value,
       days: parseInt(document.getElementById('days').value) || 7
     };
-    if (!data.courseCode || !data.courseName || !data.portion || !data.book) {
-      showError('Please fill in all fields before generating.');
+    if (!data.courseCode || !data.courseName || !data.portion || books.length === 0) {
+      showError('Please fill in course details and at least one reference book.');
       return;
     }
     document.getElementById('errorBox').classList.add('hidden');
