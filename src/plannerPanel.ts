@@ -125,6 +125,8 @@ export class PlannerPanel {
       ? papersContext
       : `\n\nNo papers found on GitHub for this course code. Use your knowledge of ${courseName} PYQ patterns from papers.codechefvit.com, restricting to 2023-2024 and 2024-2025 academic years only.`;
 
+    const syllabusNote = `\n\nIMPORTANT SYLLABUS CONSTRAINT: Refer to the official VIT ECE syllabus at https://vit.ac.in/wp-content/uploads/2024/05/AY_2022-23_BEC.pdf for the exact topics, units, and programming languages for ECE courses. For example, BECE204L (Microprocessors and Microcontrollers) covers ONLY 8085/8086 Assembly Language programming — do NOT include Embedded C or ARM unless explicitly listed in the syllabus for this course code. Always cross-check topics against the official VIT syllabus PDF before generating questions.`;
+
     const prompt = `You are an expert VIT exam coach for ECE students at VIT ${campus}. The student is preparing for:
 
 Course: ${courseName} (${courseCode})
@@ -135,7 +137,7 @@ Reference Books: ${bookList.join(', ')}
 Days available: ${days}
 Campus: VIT ${campus}
 
-${patternNote}${weightageNote}${papersFoundNote}
+${patternNote}${syllabusNote}${weightageNote}${papersFoundNote}
 
 Based ONLY on the last 2 years of PYQ papers (2023-2024 and 2024-2025), generate a comprehensive study analysis. IGNORE papers older than 2 years.
 
@@ -276,9 +278,18 @@ Include 8-12 topics, exactly ${days} days in plan (3 tasks/day), exactly 10 pred
   .day-task { font-size: 12px; padding: 3px 0; }
   .day-task::before { content: "▸ "; color: var(--vscode-textLink-foreground); }
   .q-card { background: var(--vscode-sideBar-background); border: 1px solid var(--vscode-panel-border); border-radius: 6px; padding: 10px 13px; margin-bottom: 8px; }
-  .q-meta { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+  .q-meta { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; flex-wrap: wrap; }
   .q-text { font-size: 13px; line-height: 1.55; margin-bottom: 5px; }
   .q-hint { font-size: 11px; color: var(--vscode-descriptionForeground); font-style: italic; }
+  .gemini-btn { margin-left: auto; background: var(--vscode-button-background); color: var(--vscode-button-foreground); border: none; border-radius: 4px; padding: 3px 8px; font-size: 10px; cursor: pointer; transition: opacity .2s; }
+  .gemini-btn:hover { opacity: 0.85; }
+  .gemini-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+  .q-answer { margin-top: 10px; border-top: 1px dashed var(--vscode-panel-border); padding-top: 10px; }
+  .ans-loading { font-size: 11px; color: var(--vscode-descriptionForeground); font-style: italic; }
+  .ans-error { font-size: 11px; color: var(--vscode-inputValidation-errorForeground); }
+  .ans-body { font-size: 12px; line-height: 1.6; }
+  .ans-body code { background: rgba(128,128,128,0.1); border-radius: 3px; padding: 1px 4px; font-family: var(--vscode-editor-font-family); }
+  .ans-heading { font-weight: 600; color: var(--vscode-textLink-foreground); margin: 8px 0 4px; }
   .book-row { display: flex; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--vscode-panel-border); align-items: flex-start; }
   .book-row:last-child { border-bottom: none; }
   .ch-circle { width: 28px; height: 28px; border-radius: 50%; background: var(--vscode-button-background); color: var(--vscode-button-foreground); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; flex-shrink: 0; }
@@ -631,16 +642,25 @@ Include 8-12 topics, exactly ${days} days in plan (3 tasks/day), exactly 10 pred
         (p.tasks || []).map(t => '<div class="day-task">' + t + '</div>').join('') +
       '</div>').join('');
 
-    document.getElementById('pqsList').innerHTML = (d.predicted_questions || []).map(q => 
-      '<div class="q-card">' +
+    window._currentCourse = document.getElementById('courseName').value.trim() + ' (' + document.getElementById('courseCode').value.trim() + ')';
+
+    let qIdx = 0;
+    document.getElementById('pqsList').innerHTML = (d.predicted_questions || []).map(q => {
+      const idx = qIdx++;
+      return '<div class="q-card" id="qcard-' + idx + '">' +
         '<div class="q-meta">' +
           '<span class="badge badge-info">' + q.type + '</span>' +
           '<span class="badge badge-' + (q.confidence === 'high' ? 'high' : 'mid') + '">' + q.confidence + ' chance</span>' +
           '<span style="font-size:11px;color:var(--vscode-descriptionForeground)">' + q.topic + '</span>' +
+          '<button type="button" class="gemini-btn" data-q-idx="' + idx + '" title="Ask Gemini to answer this question">✨ Ask Gemini</button>' +
         '</div>' +
         '<div class="q-text">' + q.question + '</div>' +
         '<div class="q-hint">Hint: ' + q.hint + '</div>' +
-      '</div>').join('');
+        '<div class="q-answer hidden" id="qans-' + idx + '"></div>' +
+      '</div>';
+    }).join('');
+
+    window._currentQuestions = d.predicted_questions || [];
 
     document.getElementById('bookList').innerHTML = (d.book_mapping || []).map(c => 
       '<div class="book-row">' +
@@ -653,6 +673,75 @@ Include 8-12 topics, exactly ${days} days in plan (3 tasks/day), exactly 10 pred
       '</div>').join('');
 
     document.getElementById('results').classList.remove('hidden');
+  }
+
+  // Event delegation for Gemini Answer buttons
+  document.getElementById('pqsList').addEventListener('click', function(e) {
+    const btn = e.target.closest('.gemini-btn');
+    if (!btn) return;
+    const idx = parseInt(btn.getAttribute('data-q-idx'));
+    answerQuestion(idx, btn);
+  });
+
+  function esc(str) {
+    return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  async function answerQuestion(idx, btn) {
+    const apiKey = localStorage.getItem('vit_planner_gemini_key');
+    if (!apiKey) { showError('API key not set.'); return; }
+
+    const q = (window._currentQuestions || [])[idx];
+    if (!q) return;
+
+    const ansBox = document.getElementById('qans-' + idx);
+    if (!ansBox) return;
+
+    if (!ansBox.classList.contains('hidden') && ansBox.textContent) {
+      ansBox.classList.add('hidden');
+      btn.textContent = '✨ Ask Gemini';
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = '⏳ Thinking...';
+    ansBox.classList.remove('hidden');
+    ansBox.innerHTML = '<div class="ans-loading">Generating model answer...</div>';
+
+    const course = window._currentCourse || 'VIT exam';
+    const prompt = 'You are a VIT university exam expert. Write a complete, detailed model answer for this 10-mark exam question from ' + course + ':\\n\\n' +
+      'Question: ' + q.question + '\\n\\n' +
+      'Requirements:\\n' +
+      '- Write a proper 10-mark answer (aim for ~400-600 words or appropriate length)\\n' +
+      '- Use clear headings/subheadings where needed\\n' +
+      '- Include diagrams described in text if applicable (e.g. "[Block Diagram: CPU connected to Memory..."]\\n' +
+      '- For programming questions, write complete correct code with explanation\\n' +
+      '- For Assembly language questions, use 8085/8086 Assembly ONLY — no C code unless specifically asked\\n' +
+      '- Be precise and exam-ready. Format for readability.';
+
+    try {
+      const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }] })
+      });
+      if (!res.ok) { const e = await res.json(); throw new Error(e?.error?.message || 'API error'); }
+      const result = await res.json();
+      const text = result.candidates?.[0]?.content?.parts?.[0]?.text || 'No answer generated.';
+      const html = text
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/\\*\\*(.+?)\\*\\*/g, '<strong>$1</strong>')
+        .replace(/^#{1,3}\\s+(.+)$/gm, '<div class="ans-heading">$1</div>')
+        .replace(/\\x60([^\\x60]+)\\x60/g, '<code>$1</code>')
+        .replace(/\\n/g, '<br>');
+      ansBox.innerHTML = '<div class="ans-body">' + html + '</div>';
+      btn.textContent = '✨ Hide Answer';
+    } catch (err) {
+      ansBox.innerHTML = '<div class="ans-error">Error: ' + esc(err.message) + '</div>';
+      btn.textContent = '✨ Ask Gemini';
+    } finally {
+      btn.disabled = false;
+    }
   }
 </script>
 </body>
