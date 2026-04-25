@@ -228,15 +228,20 @@ async function generate() {
       '\n\nNo papers found on GitHub. Use your knowledge of ' + courseName +
       ' PYQ patterns from papers.codechefvit.com, restricting to 2023-2025 only.';
 
-    // VIT ECE official syllabus reference — keeps AI on the correct topics/languages
-    var syllabusNote = '\n\nIMPORTANT SYLLABUS CONSTRAINT: Refer to the official VIT ECE syllabus at ' +
-      'https://vit.ac.in/wp-content/uploads/2024/05/AY_2022-23_BEC.pdf for the exact topics, ' +
-      'units, and programming languages for ECE courses. For example, BECE204L (Microprocessors and ' +
-      'Microcontrollers) covers ONLY 8085/8086 Assembly Language programming — do NOT include ' +
-      'Embedded C or ARM unless explicitly listed in the syllabus for this course code. ' +
-      'Always cross-check topics against the official VIT syllabus PDF before generating questions.';
+    var getSyllabusNote = function(code) {
+      var upperCode = code.toUpperCase();
+      if (upperCode.includes('ECE') || upperCode.includes('BEC')) {
+        return '\n\nIMPORTANT SYLLABUS CONSTRAINT: Refer to the official VIT ECE syllabus at https://vit.ac.in/wp-content/uploads/2024/05/AY_2022-23_BEC.pdf for the exact topics, units, and programming languages for ECE courses. For example, BECE204L (Microprocessors and Microcontrollers) covers ONLY 8085/8086 Assembly Language programming — do NOT include Embedded C or ARM unless explicitly listed in the syllabus for this course code.';
+      }
+      if (upperCode.includes('CSE') || upperCode.includes('BCS') || upperCode.includes('ITE') || upperCode.includes('BIT')) {
+        return '\n\nIMPORTANT SYLLABUS CONSTRAINT: Strictly adhere to the official VIT Computer Science & IT curriculum for this course. Ensure you do not mix up topics from other domains. Stick strictly to the specific programming languages or frameworks taught for this course code at VIT.';
+      }
+      return '\n\nIMPORTANT SYLLABUS CONSTRAINT: Strictly adhere to the official VIT curriculum for the department corresponding to this course (' + code + '). Do not invent topics, frameworks, or concepts outside the official syllabus scope for this specific course. Always cross-check topics against typical VIT academic standards.';
+    };
 
-    var prompt = 'You are an expert VIT exam coach. The student is preparing for:\n\n' +
+    var syllabusNote = getSyllabusNote(courseCode);
+
+    var prompt = 'You are an expert VIT exam coach for students at VIT ' + campus + '. The student is preparing for:\n\n' +
       'Course: ' + courseName + ' (' + courseCode + ')\n' +
       'Exam: ' + examType + '\n' +
       'Exam Pattern: 10 questions x 10 marks each\n' +
