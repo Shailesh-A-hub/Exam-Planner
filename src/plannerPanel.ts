@@ -344,22 +344,22 @@ Include 8-12 topics, exactly ${days} days in plan (3 tasks/day), exactly 10 pred
     </div>
   </div>
   <div style="margin-bottom:10px;">
-    <label style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
       <span style="font-size:11px;color:var(--vscode-descriptionForeground);">Module-wise weightage <span style="font-size:10px;opacity:0.6;">(optional — questions per unit)</span></span>
-      <button class="btn btn-secondary" onclick="addModule()" style="font-size:11px;padding:3px 10px;">+ Add unit</button>
-    </label>
+      <button type="button" class="btn btn-secondary" onclick="addModule()" style="font-size:11px;padding:3px 10px;">+ Add unit</button>
+    </div>
     <div id="moduleRows"></div>
   </div>
 
   <div style="margin-bottom:12px;">
-    <label style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
       <span style="font-size:11px;color:var(--vscode-descriptionForeground);">Reference books <span style="font-size:10px;opacity:0.6;">(add all books used for this course)</span></span>
-      <button class="btn btn-secondary" onclick="addBook()" style="font-size:11px;padding:3px 10px;">+ Add book</button>
-    </label>
+      <button type="button" class="btn btn-secondary" onclick="addBook()" style="font-size:11px;padding:3px 10px;">+ Add book</button>
+    </div>
     <div id="bookRows">
       <div class="module-row" id="book-1">
         <input type="text" placeholder="e.g. Mazidi - The 8051 Microcontroller" class="book-input" style="flex:1;" />
-        <button onclick="removeBook('book-1')" style="background:transparent;border:none;color:var(--vscode-descriptionForeground);cursor:pointer;font-size:14px;padding:0 4px;">x</button>
+        <button type="button" onclick="removeBook('book-1')" style="background:transparent;border:none;color:var(--vscode-descriptionForeground);cursor:pointer;font-size:14px;padding:0 4px;">x</button>
       </div>
     </div>
   </div>
@@ -460,7 +460,7 @@ Include 8-12 topics, exactly ${days} days in plan (3 tasks/day), exactly 10 pred
       '<input type="text" placeholder="e.g. Unit 1 - Microprocessor" class="mod-name" style="flex:1;" />' +
       '<span class="mod-label">Questions</span>' +
       '<input type="number" value="2" min="0" max="10" class="mod-qs" style="width:50px;" />' +
-      '<button onclick="removeModule(' + moduleCount + ')" style="background:transparent;border:none;color:var(--vscode-descriptionForeground);cursor:pointer;font-size:14px;padding:0 4px;">x</button>';
+      '<button type="button" onclick="removeModule(' + moduleCount + ')" style="background:transparent;border:none;color:var(--vscode-descriptionForeground);cursor:pointer;font-size:14px;padding:0 4px;">x</button>';
     document.getElementById('moduleRows').appendChild(row);
   }
 
