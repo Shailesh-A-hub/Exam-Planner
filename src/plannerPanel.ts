@@ -470,11 +470,14 @@ Include 8-12 topics, exactly ${days} days in plan (3 tasks/day), exactly 10 pred
   }
 
   function getModuleWeightage() {
-    const rows = document.querySelectorAll('.module-row');
+    const rows = document.getElementById('moduleRows').querySelectorAll('.module-row');
     const result = [];
     rows.forEach(row => {
-      const name = row.querySelector('.mod-name').value.trim();
-      const qs = parseInt(row.querySelector('.mod-qs').value) || 0;
+      const nameEl = row.querySelector('.mod-name');
+      const qsEl = row.querySelector('.mod-qs');
+      if (!nameEl || !qsEl) return;
+      const name = nameEl.value.trim();
+      const qs = parseInt(qsEl.value) || 0;
       if (name && qs > 0) result.push({ module: name, questions: qs });
     });
     return result;
@@ -545,6 +548,7 @@ Include 8-12 topics, exactly ${days} days in plan (3 tasks/day), exactly 10 pred
     document.getElementById('sN3').textContent = high;
     document.getElementById('summaryBox').textContent = d.summary || '';
 
+    const maxFreq = Math.max(...topics.map(t => t.freq), 1);
     document.getElementById('topicList').innerHTML = topics.map(t => 
       '<div class="topic-row">' +
         '<span style="min-width:180px;font-weight:' + (t.priority === 'high' ? 600 : 400) + '">' + t.name + '</span>' +
