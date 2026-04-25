@@ -71,38 +71,49 @@ export class PlannerPanel {
   }
 
   private async _runGeneration(data: any, apiKey: string) {
-    const { courseCode, courseName, portion, examType, book, days, campus } = data;
+    const { courseCode, courseName, portion, examType, examPattern, book, days, campus } = data;
+
+    const patternNote = examPattern === '10x10'
+      ? 'IMPORTANT: This exam has 10 questions worth 10 marks each (no 16-mark or 2-mark). ALL predicted questions must be 10-mark questions only.'
+      : examPattern === '16/8/2'
+      ? 'This exam follows the classic VIT pattern: 16-mark, 8-mark, and 2-mark questions.'
+      : 'This exam has short answer questions worth 5 marks each.';
+
+    const qType = examPattern === '10x10' ? '10-mark' : examPattern === '5mark' ? '5-mark' : '16-mark|8-mark|2-mark';
 
     const prompt = `You are an expert VIT exam coach for ECE students at VIT ${campus}. The student is preparing for:
 
 Course: ${courseName} (${courseCode})
 Exam: ${examType}
+Exam Pattern: ${examPattern}
 Portion: ${portion}
 Textbook: ${book}
 Days available: ${days}
 Campus: VIT ${campus}
+
+${patternNote}
 
 Based on your knowledge of typical ${courseName} PYQ patterns at VIT (from vitpapervault.in, papers.codechefvit.com, GitHub VIT-Papers repo) and the standard VIT syllabus for this course, generate a comprehensive study analysis.
 
 Return ONLY a JSON object with this exact structure (no markdown, no backticks, no extra text):
 {
   "papers_found": <number 5-15>,
-  "summary": "<2 sentence exam strategy tip>",
+  "summary": "<2 sentence exam strategy tip tailored to the ${examPattern} pattern>",
   "topics": [
-    {"name": "<topic>", "freq": <1-10>, "priority": "high|mid|low", "units": "<unit>", "marks": "<typical marks asked>"}
+    {"name": "<topic>", "freq": <1-10>, "priority": "high|mid|low", "units": "<unit>", "marks": "<typical marks asked in this pattern>"}
   ],
   "study_plan": [
     {"day": <number>, "focus": "<main focus>", "tasks": ["<task1>", "<task2>", "<task3>"]}
   ],
   "predicted_questions": [
-    {"question": "<question text>", "type": "16-mark|8-mark|2-mark", "topic": "<topic>", "confidence": "high|mid", "hint": "<1 line answer hint>"}
+    {"question": "<question text>", "type": "${qType}", "topic": "<topic>", "confidence": "high|mid", "hint": "<1 line answer hint>"}
   ],
   "book_mapping": [
     {"chapter": <number>, "title": "<chapter title>", "topics_covered": ["<topic>"], "priority": "high|mid|low", "pages": "<approx range>", "key_sections": "<important sections to focus on>"}
   ]
 }
 
-Include 8-12 topics, exactly ${days} days in plan (3 tasks/day), 7-9 predicted questions, 5-7 book chapters. Be specific to ${courseName} at VIT.`;
+Include 8-12 topics, exactly ${days} days in plan (3 tasks/day), exactly 10 predicted questions matching the exam pattern, 5-7 book chapters. Be specific to ${courseName} at VIT.`;
 
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
       method: 'POST',
@@ -260,6 +271,16 @@ Include 8-12 topics, exactly ${days} days in plan (3 tasks/day), 7-9 predicted q
       </select>
     </div>
   </div>
+  <div class="form-grid">
+    <div><label>Exam pattern</label>
+      <select id="examPattern">
+        <option value="10x10">10 questions × 10 marks each</option>
+        <option value="16/8/2">Classic VIT (16 / 8 / 2 marks)</option>
+        <option value="5mark">Short answer (5 marks each)</option>
+      </select>
+    </div>
+    <div style="display:flex;align-items:flex-end;padding-bottom:2px;font-size:11px;color:var(--vscode-descriptionForeground);">AI will tailor predicted questions to match your exact pattern.</div>
+  </div>
   <div class="form-grid3">
     <div><label>Textbook</label><input id="book" type="text" placeholder="e.g. Oppenheim & Willsky" /></div>
     <div><label>Campus</label>
@@ -332,6 +353,7 @@ Include 8-12 topics, exactly ${days} days in plan (3 tasks/day), 7-9 predicted q
       courseName: document.getElementById('courseName').value.trim(),
       portion: document.getElementById('portion').value.trim(),
       examType: document.getElementById('examType').value,
+      examPattern: document.getElementById('examPattern').value,
       book: document.getElementById('book').value.trim(),
       campus: document.getElementById('campus').value,
       days: parseInt(document.getElementById('days').value) || 7
