@@ -31,7 +31,7 @@ loadKey();
 document.querySelectorAll('.tab').forEach(function (btn) {
   btn.addEventListener('click', function () {
     var name = btn.getAttribute('data-tab');
-    ['freq', 'plan', 'pqs', 'book'].forEach(function (t) {
+    ['freq', 'plan', 'pqs', 'mock', 'book'].forEach(function (t) {
       document.getElementById('tab-' + t).classList.add('hidden');
     });
     document.querySelectorAll('.tab').forEach(function (t) { t.classList.remove('active'); });
@@ -257,8 +257,9 @@ async function generate() {
       '"topics":[{"name":"<topic>","freq":<1-10>,"priority":"high|mid|low","units":"<unit>","marks":"<marks>"}],' +
       '"study_plan":[{"day":<n>,"focus":"<focus>","tasks":["<t1>","<t2>","<t3>"]}],' +
       '"predicted_questions":[{"question":"<q>","type":"10-mark","topic":"<topic>","confidence":"high|mid","hint":"<hint>"}],' +
+      '"mock_exam":[{"question":"<completely original, unseen question text>","type":"10-mark","topic":"<topic>","marks":10,"hint":"<hint>"}],' +
       '"book_mapping":[{"chapter":<n>,"title":"<title>","topics_covered":["<t>"],"priority":"high|mid|low","pages":"<pp>","key_sections":"<s>"}]}\n\n' +
-      'Include 8-12 topics, exactly ' + days + ' days (3 tasks/day), exactly 10 predicted questions, 5-7 book chapters.';
+      'Include 8-12 topics, exactly ' + days + ' days (3 tasks/day), exactly 10 predicted questions, exactly 5 completely original unseen mock exam questions (application/design level) based on syllabus, 5-7 book chapters.';
 
     var res = await fetch(
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey,
@@ -333,13 +334,16 @@ function renderResults(d) {
   // Store courseName globally so answerQuestion can use it
   window._currentCourse = courseName + ' (' + courseCode + ')';
 
+  window._currentQuestions = [];
   var qIdx = 0;
-  document.getElementById('pqsList').innerHTML = (d.predicted_questions || []).map(function (q) {
+
+  var renderQ = function(q, badgeClass, badgeText) {
+    window._currentQuestions.push(q);
     var idx = qIdx++;
     return '<div class="q-card" id="qcard-' + idx + '">' +
       '<div class="q-meta">' +
-      '<span class="badge2 b-info">' + esc(q.type) + '</span>' +
-      '<span class="badge2 b-' + (q.confidence === 'high' ? 'high' : 'mid') + '">' + esc(q.confidence) + ' chance</span>' +
+      '<span class="badge2 b-info">' + esc(q.type || '10-mark') + '</span>' +
+      '<span class="badge2 b-' + badgeClass + '">' + badgeText + '</span>' +
       '<span style="font-size:11px;color:var(--muted)">' + esc(q.topic) + '</span>' +
       '<button type="button" class="gemini-btn" data-q-idx="' + idx + '" title="Ask Gemini to answer this question">✨ Ask Gemini</button>' +
       '</div>' +
@@ -347,18 +351,25 @@ function renderResults(d) {
       '<div class="q-hint">Hint: ' + esc(q.hint) + '</div>' +
       '<div class="q-answer hidden" id="qans-' + idx + '"></div>' +
       '</div>';
+  };
+
+  document.getElementById('pqsList').innerHTML = (d.predicted_questions || []).map(function (q) {
+    return renderQ(q, q.confidence === 'high' ? 'high' : 'mid', esc(q.confidence) + ' chance');
   }).join('');
 
-  // Store questions for answer lookup
-  window._currentQuestions = d.predicted_questions || [];
+  document.getElementById('mockList').innerHTML = (d.mock_exam || []).map(function (q) {
+    return renderQ(q, 'high', 'New Original');
+  }).join('');
 
-  // Event delegation for Gemini answer buttons
-  document.getElementById('pqsList').addEventListener('click', function (e) {
+  // Event delegation for Gemini answer buttons (apply to both lists)
+  var handleAnswerClick = function (e) {
     var btn = e.target.closest('.gemini-btn');
     if (!btn) return;
     var idx = parseInt(btn.getAttribute('data-q-idx'));
     answerQuestion(idx, btn);
-  });
+  };
+  document.getElementById('pqsList').addEventListener('click', handleAnswerClick);
+  document.getElementById('mockList').addEventListener('click', handleAnswerClick);
 
   document.getElementById('bookList').innerHTML = (d.book_mapping || []).map(function (c) {
     return '<div class="book-row">' +

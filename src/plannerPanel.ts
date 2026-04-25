@@ -165,12 +165,15 @@ Return ONLY a JSON object with this exact structure (no markdown, no backticks, 
   "predicted_questions": [
     {"question": "<question text>", "type": "${qType}", "topic": "<topic>", "confidence": "high|mid", "hint": "<1 line answer hint>"}
   ],
+  "mock_exam": [
+    {"question": "<completely original, unseen question text>", "type": "${qType}", "topic": "<topic>", "marks": 10, "hint": "<1 line answer hint>"}
+  ],
   "book_mapping": [
     {"chapter": <number>, "title": "<chapter title>", "topics_covered": ["<topic>"], "priority": "high|mid|low", "pages": "<approx range>", "key_sections": "<important sections to focus on>"}
   ]
 }
 
-Include 8-12 topics, exactly ${days} days in plan (3 tasks/day), exactly 10 predicted questions matching the exam pattern, 5-7 book chapters. Base ALL frequency and priority rankings strictly on the last 2 years of PYQs. Be specific to ${courseName} at VIT ${campus}.`;
+Include 8-12 topics, exactly ${days} days in plan (3 tasks/day), exactly 10 predicted questions matching the exam pattern, exactly 5 completely original unseen mock exam questions (application/design level) based on the syllabus, and 5-7 book chapters. Base ALL frequency and priority rankings strictly on the last 2 years of PYQs. Be specific to ${courseName} at VIT ${campus}.`;
 
 
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
@@ -420,11 +423,13 @@ Include 8-12 topics, exactly ${days} days in plan (3 tasks/day), exactly 10 pred
     <button type="button" class="tab active" data-tab="freq">Topic frequency</button>
     <button type="button" class="tab" data-tab="plan">Study plan</button>
     <button type="button" class="tab" data-tab="pqs">Predicted Qs</button>
+    <button type="button" class="tab" data-tab="mock">📝 Mock Exam</button>
     <button type="button" class="tab" data-tab="book">Book mapping</button>
   </div>
   <div id="tab-freq"><div id="topicList"></div></div>
   <div id="tab-plan" class="hidden"><div id="planList"></div></div>
   <div id="tab-pqs" class="hidden"><div id="pqsList"></div></div>
+  <div id="tab-mock" class="hidden"><div id="mockList"></div></div>
   <div id="tab-book" class="hidden"><div id="bookList"></div></div>
   <button type="button" class="pdf-btn" id="pdfBtn">Export as PDF (File > Print > Save as PDF)</button>
 </div>
@@ -446,7 +451,7 @@ Include 8-12 topics, exactly ${days} days in plan (3 tasks/day), exactly 10 pred
   document.querySelectorAll('.tab').forEach(function(btn) {
     btn.addEventListener('click', function() {
       var name = btn.getAttribute('data-tab');
-      ['freq','plan','pqs','book'].forEach(function(t) {
+      ['freq','plan','pqs','mock','book'].forEach(function(t) {
         document.getElementById('tab-'+t).classList.add('hidden');
       });
       document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
@@ -654,24 +659,32 @@ Include 8-12 topics, exactly ${days} days in plan (3 tasks/day), exactly 10 pred
       '</div>').join('');
 
     window._currentCourse = document.getElementById('courseName').value.trim() + ' (' + document.getElementById('courseCode').value.trim() + ')';
-
+    window._currentQuestions = [];
     let qIdx = 0;
-    document.getElementById('pqsList').innerHTML = (d.predicted_questions || []).map(q => {
+
+    const renderQ = (q: any, badgeClass: string, badgeText: string) => {
+      window._currentQuestions.push(q);
       const idx = qIdx++;
       return '<div class="q-card" id="qcard-' + idx + '">' +
         '<div class="q-meta">' +
-          '<span class="badge badge-info">' + q.type + '</span>' +
-          '<span class="badge badge-' + (q.confidence === 'high' ? 'high' : 'mid') + '">' + q.confidence + ' chance</span>' +
-          '<span style="font-size:11px;color:var(--vscode-descriptionForeground)">' + q.topic + '</span>' +
+          '<span class="badge badge-info">' + (q.type || '10-mark') + '</span>' +
+          '<span class="badge badge-' + badgeClass + '">' + badgeText + '</span>' +
+          '<span style="font-size:11px;color:var(--vscode-descriptionForeground)">' + (q.topic || '') + '</span>' +
           '<button type="button" class="gemini-btn" data-q-idx="' + idx + '" title="Ask Gemini to answer this question">✨ Ask Gemini</button>' +
         '</div>' +
-        '<div class="q-text">' + q.question + '</div>' +
-        '<div class="q-hint">Hint: ' + q.hint + '</div>' +
+        '<div class="q-text">' + (q.question || '') + '</div>' +
+        '<div class="q-hint">Hint: ' + (q.hint || '') + '</div>' +
         '<div class="q-answer hidden" id="qans-' + idx + '"></div>' +
       '</div>';
-    }).join('');
+    };
 
-    window._currentQuestions = d.predicted_questions || [];
+    document.getElementById('pqsList').innerHTML = (d.predicted_questions || []).map((q: any) => 
+      renderQ(q, q.confidence === 'high' ? 'high' : 'mid', q.confidence + ' chance')
+    ).join('');
+
+    document.getElementById('mockList').innerHTML = (d.mock_exam || []).map((q: any) => 
+      renderQ(q, 'high', 'New Original')
+    ).join('');
 
     document.getElementById('bookList').innerHTML = (d.book_mapping || []).map(c => 
       '<div class="book-row">' +
