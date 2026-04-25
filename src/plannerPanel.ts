@@ -426,13 +426,13 @@ Include 8-12 topics, exactly ${days} days in plan (3 tasks/day), exactly 10 pred
     const row = document.createElement('div');
     row.className = 'module-row';
     row.id = 'mod-' + moduleCount;
-    row.innerHTML = `
+    row.innerHTML = \`
       <span class="mod-label">Unit</span>
-      <input type="text" placeholder="e.g. Unit 1 – Microprocessor" class="mod-name" style="flex:1;" />
+      <input type="text" placeholder="e.g. Unit 1 - Microprocessor" class="mod-name" style="flex:1;" />
       <span class="mod-label">Questions</span>
       <input type="number" value="2" min="0" max="10" class="mod-qs" style="width:50px;" />
-      <button onclick="removeModule(${moduleCount})" style="background:transparent;border:none;color:var(--vscode-descriptionForeground);cursor:pointer;font-size:14px;padding:0 4px;">✕</button>
-    `;
+      <button onclick="removeModule(\${moduleCount})" style="background:transparent;border:none;color:var(--vscode-descriptionForeground);cursor:pointer;font-size:14px;padding:0 4px;">x</button>
+    \`;
     document.getElementById('moduleRows').appendChild(row);
   }
 
