@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VIT AI Study Planner — PYQ-Powered Exam Prep</title>
+<meta name="description" content="AI-powered study planner for VIT students. Analyse last 2 years of PYQ papers and get predicted questions, day-by-day plans, and book mapping.">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<!-- Hero -->
+<header class="hero">
+  <div class="hero-glow"></div>
+  <div class="container">
+    <div class="badge-row"><span class="badge">🎓 VIT Students Only</span><span class="badge">⚡ Gemini AI</span><span class="badge">📄 Last 2 Years PYQs</span></div>
+    <h1>VIT AI Study Planner</h1>
+    <p class="hero-sub">Enter your course → AI analyses the last 2 years of PYQ papers → Get predicted questions, topic priority chart &amp; a day-by-day prep plan.</p>
+    <a href="#planner" class="cta-btn">Start Planning →</a>
+  </div>
+</header>
+
+<!-- Features strip -->
+<section class="features">
+  <div class="container features-grid">
+    <div class="feat"><div class="feat-icon">📊</div><h3>PYQ Frequency Analysis</h3><p>See which topics appeared most in last 2 years of exams</p></div>
+    <div class="feat"><div class="feat-icon">🎯</div><h3>Predicted Questions</h3><p>10 high-probability questions based on real paper trends</p></div>
+    <div class="feat"><div class="feat-icon">📅</div><h3>Day-by-Day Plan</h3><p>Custom study schedule based on your available days</p></div>
+    <div class="feat"><div class="feat-icon">📚</div><h3>Book Chapter Mapping</h3><p>Know exactly which chapters and pages to focus on</p></div>
+  </div>
+</section>
+
+<!-- PYQ Sources banner -->
+<div class="container">
+  <div class="sources-bar">
+    <span>Find PYQ papers:</span>
+    <a href="https://papers.codechefvit.com" target="_blank" rel="noopener">CodeChef VIT Papers ↗</a>
+    <a href="https://github.com/Codechef-VIT/VIT-Papers" target="_blank" rel="noopener">GitHub Repo ↗</a>
+  </div>
+</div>
+
+<!-- Main Planner -->
+<section class="container" id="planner">
+  <div class="card">
+    <div class="card-header">
+      <h2>Generate Your Study Plan</h2>
+      <p>Fill in your course details — no sign-up needed</p>
+    </div>
+
+    <!-- API Key -->
+    <div class="api-row" id="apiKeyRow">
+      <div class="api-icon">🔑</div>
+      <div>
+        <div class="api-title">Gemini API Key <span class="api-required">required</span></div>
+        <div class="api-hint">Free at <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com</a> · stored only in your browser, never sent to any server</div>
+      </div>
+      <div class="api-input-group">
+        <input type="password" id="apiKeyInput" placeholder="AIza..." autocomplete="off">
+        <button type="button" id="saveKeyBtn" class="btn-sm">Save</button>
+      </div>
+    </div>
+    <div id="keyStatus" class="key-status hidden">✅ API key saved in browser · <span id="clearKey" class="link">Clear</span></div>
+
+    <!-- Course Info -->
+    <div class="section-label">Course Details</div>
+    <div class="form-grid2">
+      <div class="field">
+        <label>Course Code</label>
+        <input type="text" id="courseCode" placeholder="e.g. ECE2002" />
+      </div>
+      <div class="field">
+        <label>Course Name</label>
+        <input type="text" id="courseName" placeholder="e.g. Signals and Systems" />
+      </div>
+    </div>
+    <div class="form-grid2">
+      <div class="field">
+        <label>Syllabus Portion</label>
+        <input type="text" id="portion" placeholder="e.g. Units 1–5" />
+      </div>
+      <div class="field">
+        <label>Exam Type</label>
+        <div class="select-wrap">
+          <select id="examType">
+            <option>FAT (Final Assessment)</option>
+            <option>CAT 1</option>
+            <option>CAT 2</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="form-grid2">
+      <div class="field">
+        <label>Campus</label>
+        <div class="select-wrap">
+          <select id="campus">
+            <option>Vellore</option>
+            <option>Chennai</option>
+            <option>Bhopal</option>
+            <option>AP</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>Days to Study</label>
+        <input type="number" id="days" value="7" min="1" max="30" />
+      </div>
+    </div>
+
+    <!-- Books -->
+    <div class="section-label">
+      Reference Books
+      <button type="button" id="addBookBtn" class="btn-add">+ Add Book</button>
+    </div>
+    <div id="bookRows">
+      <div class="dynamic-row" id="book-1">
+        <input type="text" class="book-input" placeholder="e.g. Mazidi — The 8051 Microcontroller" />
+        <button type="button" class="rm-btn" data-remove-book="book-1">✕</button>
+      </div>
+    </div>
+
+    <!-- Module Weightage -->
+    <div class="section-label">
+      Module-wise Weightage <span class="optional">(optional)</span>
+      <button type="button" id="addUnitBtn" class="btn-add">+ Add Unit</button>
+    </div>
+    <div id="moduleRows"></div>
+
+    <button type="button" id="generateBtn" class="btn-generate">
+      <span id="btnText">✨ Generate Study Plan</span>
+    </button>
+  </div>
+
+  <!-- Error -->
+  <div id="errorBox" class="error-box hidden"></div>
+
+  <!-- Loading -->
+  <div id="loadingBox" class="loading-box hidden">
+    <div class="spinner-ring"></div>
+    <div id="loadMsg" class="load-text">Analysing PYQ papers...</div>
+  </div>
+
+  <!-- Results -->
+  <div id="results" class="hidden">
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-n" id="sN1">—</div><div class="stat-l">PYQ papers analysed</div></div>
+      <div class="stat-card"><div class="stat-n" id="sN2">—</div><div class="stat-l">Topics found</div></div>
+      <div class="stat-card"><div class="stat-n" id="sN3">—</div><div class="stat-l">High-priority topics</div></div>
+    </div>
+    <div id="summaryBox" class="summary-box"></div>
+    <div class="tabs-row">
+      <button type="button" class="tab active" data-tab="freq">📊 Topic Frequency</button>
+      <button type="button" class="tab" data-tab="plan">📅 Study Plan</button>
+      <button type="button" class="tab" data-tab="pqs">🎯 Predicted Qs</button>
+      <button type="button" class="tab" data-tab="book">📚 Book Mapping</button>
+    </div>
+    <div id="tab-freq"><div id="topicList"></div></div>
+    <div id="tab-plan" class="hidden"><div id="planList"></div></div>
+    <div id="tab-pqs" class="hidden"><div id="pqsList"></div></div>
+    <div id="tab-book" class="hidden"><div id="bookList"></div></div>
+    <button type="button" class="btn-pdf" onclick="window.print()">🖨 Export as PDF</button>
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="container">
+    <p>VIT AI Study Planner · Your API key is stored only in <strong>localStorage</strong> — never sent to any server other than Google Gemini directly from your browser.</p>
+    <p style="margin-top:6px;opacity:0.5;font-size:11px;">Built for VIT students · Not affiliated with VIT or Google</p>
+  </div>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
