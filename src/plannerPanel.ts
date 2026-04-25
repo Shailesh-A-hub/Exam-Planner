@@ -70,8 +70,49 @@ export class PlannerPanel {
     }, null, this._disposables);
   }
 
+  private async _fetchCodeChefPapers(courseCode: string): Promise<string> {
+    // Try multiple known CodeChef VIT paper repos
+    const repos = [
+      'Codechef-VIT/VIT-Papers',
+      'codechefvit/vitpapervault',
+      'codechefvit/VIT-Papers'
+    ];
+    for (const repo of repos) {
+      try {
+        const res = await fetch(
+          `https://api.github.com/repos/${repo}/git/trees/HEAD?recursive=1`,
+          { headers: { 'Accept': 'application/vnd.github+json', 'User-Agent': 'VIT-Exam-Planner-Extension' } }
+        );
+        if (!res.ok) { continue; }
+        const data = await res.json() as any;
+        const files: string[] = (data.tree || [])
+          .filter((f: any) => f.type === 'blob')
+          .map((f: any) => f.path as string)
+          .filter((p: string) => {
+            const upper = p.toUpperCase();
+            const matchesCourse = upper.includes(courseCode.toUpperCase());
+            const recentYear = p.includes('2023') || p.includes('2024') || p.includes('2025');
+            return matchesCourse && recentYear;
+          });
+        if (files.length > 0) {
+          return `\n\nREAL PAPERS FOUND on CodeChef VIT GitHub (${repo}) for ${courseCode}, last 2 years:\n` +
+            files.map(f => `  - ${f}`).join('\n') +
+            `\n\nIMPORTANT: Use these specific paper filenames as your PRIMARY reference. ` +
+            `The filenames encode year, semester, and exam type. Analyse the topics asked ` +
+            `in these papers to build the frequency table and predicted questions.`;
+        }
+      } catch { continue; }
+    }
+    return ''; // fallback: AI uses its own knowledge
+  }
+
   private async _runGeneration(data: any, apiKey: string) {
     const { courseCode, courseName, portion, examType, book, days, campus, moduleWeightage } = data;
+
+    // Notify UI that we are fetching real papers
+    this._panel.webview.postMessage({ command: 'loadMsg', text: 'Fetching real papers from CodeChef VIT GitHub…' });
+    const papersContext = await this._fetchCodeChefPapers(courseCode);
+    this._panel.webview.postMessage({ command: 'loadMsg', text: 'Analysing PYQ patterns with Gemini…' });
 
     const patternNote = 'IMPORTANT: This exam has 10 questions worth 10 marks each. ALL predicted questions must be 10-mark questions only.';
     const qType = '10-mark';
@@ -79,6 +120,10 @@ export class PlannerPanel {
     const weightageNote = moduleWeightage && moduleWeightage.length > 0
       ? `\n\nMODULE-WISE WEIGHTAGE — follow this distribution EXACTLY when generating predicted questions:\n${moduleWeightage.map((m: any) => `  - ${m.module}: ${m.questions} question(s) x 10 marks`).join('\n')}\nThe total predicted questions must respect the above unit distribution precisely.`
       : '';
+
+    const papersFoundNote = papersContext
+      ? papersContext
+      : `\n\nNo papers found on GitHub for this course code. Use your knowledge of ${courseName} PYQ patterns from vitpapervault.in and papers.codechefvit.com, restricting to 2023-2024 and 2024-2025 academic years only.`;
 
     const prompt = `You are an expert VIT exam coach for ECE students at VIT ${campus}. The student is preparing for:
 
@@ -90,13 +135,13 @@ Textbook: ${book}
 Days available: ${days}
 Campus: VIT ${campus}
 
-${patternNote}${weightageNote}
+${patternNote}${weightageNote}${papersFoundNote}
 
-Based on your knowledge of ${courseName} PYQ patterns at VIT ${campus} (from vitpapervault.in, papers.codechefvit.com, GitHub VIT-Papers repo), analyse ONLY the most recent 2 years of question papers (2023-2024 and 2024-2025 academic years). IGNORE papers older than 2 years — VIT syllabus changes frequently and older papers may not reflect the current syllabus.
+Based ONLY on the last 2 years of PYQ papers (2023-2024 and 2024-2025), generate a comprehensive study analysis. IGNORE papers older than 2 years.
 
 Return ONLY a JSON object with this exact structure (no markdown, no backticks, no extra text):
 {
-  "papers_found": <number 2-6>,
+  "papers_found": <actual number of papers found or estimated>,
   "summary": "<2 sentence exam strategy tip for 10x10 pattern based only on recent 2 year PYQ trends>",
   "topics": [
     {"name": "<topic>", "freq": <1-10>, "priority": "high|mid|low", "units": "<unit>", "marks": "<typical marks asked in this pattern>"}
@@ -444,6 +489,12 @@ Include 8-12 topics, exactly ${days} days in plan (3 tasks/day), exactly 10 pred
 
   window.addEventListener('message', e => {
     const msg = e.data;
+
+    if (msg.command === 'loadMsg') {
+      document.getElementById('loadMsg').textContent = msg.text;
+      return;
+    }
+
     clearInterval(loadTicker);
     document.getElementById('loadingBox').classList.add('hidden');
     document.getElementById('generateBtn').disabled = false;
