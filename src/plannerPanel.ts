@@ -71,10 +71,14 @@ export class PlannerPanel {
   }
 
   private async _runGeneration(data: any, apiKey: string) {
-    const { courseCode, courseName, portion, examType, book, days, campus } = data;
+    const { courseCode, courseName, portion, examType, book, days, campus, moduleWeightage } = data;
 
     const patternNote = 'IMPORTANT: This exam has 10 questions worth 10 marks each. ALL predicted questions must be 10-mark questions only.';
     const qType = '10-mark';
+
+    const weightageNote = moduleWeightage && moduleWeightage.length > 0
+      ? `\n\nMODULE-WISE WEIGHTAGE — follow this distribution EXACTLY when generating predicted questions:\n${moduleWeightage.map((m: any) => `  - ${m.module}: ${m.questions} question(s) x 10 marks`).join('\n')}\nThe total predicted questions must respect the above unit distribution precisely.`
+      : '';
 
     const prompt = `You are an expert VIT exam coach for ECE students at VIT ${campus}. The student is preparing for:
 
@@ -86,7 +90,7 @@ Textbook: ${book}
 Days available: ${days}
 Campus: VIT ${campus}
 
-${patternNote}
+${patternNote}${weightageNote}
 
 Based on your knowledge of ${courseName} PYQ patterns at VIT ${campus} (from vitpapervault.in, papers.codechefvit.com, GitHub VIT-Papers repo), analyse ONLY the most recent 2 years of question papers (2023-2024 and 2024-2025 academic years). IGNORE papers older than 2 years — VIT syllabus changes frequently and older papers may not reflect the current syllabus.
 
@@ -247,12 +251,38 @@ Include 8-12 topics, exactly ${days} days in plan (3 tasks/day), exactly 10 pred
   .api-link { color: var(--vscode-textLink-foreground); cursor: pointer; text-decoration: underline; font-size: 12px; }
   .module-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; background: var(--vscode-input-background); border: 1px solid var(--vscode-input-border, #555); border-radius: 4px; padding: 5px 8px; }
   .mod-label { font-size: 10px; color: var(--vscode-descriptionForeground); white-space: nowrap; }
+  .papers-banner { background: var(--vscode-sideBar-background); border: 1px solid var(--vscode-panel-border); border-radius: 6px; padding: 9px 13px; margin-bottom: 14px; font-size: 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .papers-banner span { color: var(--vscode-descriptionForeground); }
+  .papers-banner a { color: var(--vscode-textLink-foreground); text-decoration: none; font-weight: 500; }
+  .papers-banner a:hover { text-decoration: underline; }
+  .pdf-btn { margin-top: 14px; width: 100%; padding: 8px; background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground); border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-family: var(--vscode-font-family); }
+  .pdf-btn:hover { opacity: 0.85; }
+  @media print {
+    .form-card, .papers-banner, #errorBox, #loadingBox, .pdf-btn, h1, .sub { display: none !important; }
+    body { padding: 10px; background: white; color: black; }
+    .stat-n { color: #1a73e8; }
+    .bar-high { background: #d93025; }
+    .bar-mid { background: #f9a825; }
+    .bar-low { background: #34a853; }
+    .tabs { display: none; }
+    #tab-freq, #tab-plan, #tab-pqs, #tab-book { display: block !important; }
+    .hidden { display: block !important; }
+  }
 </style>
 </head>
 <body>
 
 <h1>Exam</h1>
 <p class="sub">VIT AI Study Planner — PYQ analysis + predicted questions + day-by-day plan</p>
+
+<div class="papers-banner">
+  <span>Find VIT PYQ papers to cross-reference:</span>
+  <div style="display:flex;gap:14px;">
+    <a href="https://papers.codechefvit.com" target="_blank">CodeChef VIT Papers</a>
+    <a href="https://vitpapervault.in" target="_blank">VIT PaperVault</a>
+    <a href="https://github.com/Codechef-VIT/VIT-Papers" target="_blank">GitHub Repo</a>
+  </div>
+</div>
 
 <div class="form-card">
   <div class="form-grid">
@@ -269,7 +299,13 @@ Include 8-12 topics, exactly ${days} days in plan (3 tasks/day), exactly 10 pred
       </select>
     </div>
   </div>
-
+  <div style="margin-bottom:10px;">
+    <label style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+      <span style="font-size:11px;color:var(--vscode-descriptionForeground);">Module-wise weightage <span style="font-size:10px;opacity:0.6;">(optional — questions per unit)</span></span>
+      <button class="btn btn-secondary" onclick="addModule()" style="font-size:11px;padding:3px 10px;">+ Add unit</button>
+    </label>
+    <div id="moduleRows"></div>
+  </div>
 
   <div class="form-grid3">
     <div><label>Textbook</label><input id="book" type="text" placeholder="e.g. Oppenheim & Willsky" /></div>
@@ -313,6 +349,7 @@ Include 8-12 topics, exactly ${days} days in plan (3 tasks/day), exactly 10 pred
   <div id="tab-plan" class="hidden"><div id="planList"></div></div>
   <div id="tab-pqs" class="hidden"><div id="pqsList"></div></div>
   <div id="tab-book" class="hidden"><div id="bookList"></div></div>
+  <button class="pdf-btn" onclick="window.print()">Export as PDF (File > Print > Save as PDF)</button>
 </div>
 
 <script>
@@ -337,12 +374,46 @@ Include 8-12 topics, exactly ${days} days in plan (3 tasks/day), exactly 10 pred
 
   function setApiKey() { vscode.postMessage({ command: 'setApiKey' }); }
 
+  let moduleCount = 0;
+
+  function addModule() {
+    moduleCount++;
+    const row = document.createElement('div');
+    row.className = 'module-row';
+    row.id = 'mod-' + moduleCount;
+    row.innerHTML = `
+      <span class="mod-label">Unit</span>
+      <input type="text" placeholder="e.g. Unit 1 – Microprocessor" class="mod-name" style="flex:1;" />
+      <span class="mod-label">Questions</span>
+      <input type="number" value="2" min="0" max="10" class="mod-qs" style="width:50px;" />
+      <button onclick="removeModule(${moduleCount})" style="background:transparent;border:none;color:var(--vscode-descriptionForeground);cursor:pointer;font-size:14px;padding:0 4px;">✕</button>
+    `;
+    document.getElementById('moduleRows').appendChild(row);
+  }
+
+  function removeModule(id) {
+    const el = document.getElementById('mod-' + id);
+    if (el) el.remove();
+  }
+
+  function getModuleWeightage() {
+    const rows = document.querySelectorAll('.module-row');
+    const result = [];
+    rows.forEach(row => {
+      const name = row.querySelector('.mod-name').value.trim();
+      const qs = parseInt(row.querySelector('.mod-qs').value) || 0;
+      if (name && qs > 0) result.push({ module: name, questions: qs });
+    });
+    return result;
+  }
+
   function generate() {
     const data = {
       courseCode: document.getElementById('courseCode').value.trim(),
       courseName: document.getElementById('courseName').value.trim(),
       portion: document.getElementById('portion').value.trim(),
       examType: document.getElementById('examType').value,
+      moduleWeightage: getModuleWeightage(),
       book: document.getElementById('book').value.trim(),
       campus: document.getElementById('campus').value,
       days: parseInt(document.getElementById('days').value) || 7
