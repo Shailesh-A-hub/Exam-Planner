@@ -456,13 +456,11 @@ Include 8-12 topics, exactly ${days} days in plan (3 tasks/day), exactly 10 pred
     const row = document.createElement('div');
     row.className = 'module-row';
     row.id = 'mod-' + moduleCount;
-    row.innerHTML = \`
-      <span class="mod-label">Unit</span>
-      <input type="text" placeholder="e.g. Unit 1 - Microprocessor" class="mod-name" style="flex:1;" />
-      <span class="mod-label">Questions</span>
-      <input type="number" value="2" min="0" max="10" class="mod-qs" style="width:50px;" />
-      <button onclick="removeModule(\${moduleCount})" style="background:transparent;border:none;color:var(--vscode-descriptionForeground);cursor:pointer;font-size:14px;padding:0 4px;">x</button>
-    \`;
+    row.innerHTML = '<span class="mod-label">Unit</span>' +
+      '<input type="text" placeholder="e.g. Unit 1 - Microprocessor" class="mod-name" style="flex:1;" />' +
+      '<span class="mod-label">Questions</span>' +
+      '<input type="number" value="2" min="0" max="10" class="mod-qs" style="width:50px;" />' +
+      '<button onclick="removeModule(' + moduleCount + ')" style="background:transparent;border:none;color:var(--vscode-descriptionForeground);cursor:pointer;font-size:14px;padding:0 4px;">x</button>';
     document.getElementById('moduleRows').appendChild(row);
   }
 
@@ -547,45 +545,44 @@ Include 8-12 topics, exactly ${days} days in plan (3 tasks/day), exactly 10 pred
     document.getElementById('sN3').textContent = high;
     document.getElementById('summaryBox').textContent = d.summary || '';
 
-    const maxFreq = Math.max(...topics.map(t => t.freq), 1);
-    document.getElementById('topicList').innerHTML = topics.map(t => \`
-      <div class="topic-row">
-        <span style="min-width:180px;font-weight:\${t.priority==='high'?600:400}">\${t.name}</span>
-        <div class="bar-bg"><div class="bar bar-\${t.priority}" style="width:\${Math.round(t.freq/maxFreq*100)}%"></div></div>
-        <span style="min-width:24px;text-align:right;font-size:11px;color:var(--vscode-descriptionForeground)">\${t.freq}x</span>
-        <span class="badge badge-\${t.priority}">\${t.priority}</span>
-        <span class="marks-tag">\${t.marks || ''}</span>
-      </div>\`).join('');
+    document.getElementById('topicList').innerHTML = topics.map(t => 
+      '<div class="topic-row">' +
+        '<span style="min-width:180px;font-weight:' + (t.priority === 'high' ? 600 : 400) + '">' + t.name + '</span>' +
+        '<div class="bar-bg"><div class="bar bar-' + t.priority + '" style="width:' + Math.round(t.freq / maxFreq * 100) + '%"></div></div>' +
+        '<span style="min-width:24px;text-align:right;font-size:11px;color:var(--vscode-descriptionForeground)">' + t.freq + 'x</span>' +
+        '<span class="badge badge-' + t.priority + '">' + t.priority + '</span>' +
+        '<span class="marks-tag">' + (t.marks || '') + '</span>' +
+      '</div>').join('');
 
-    document.getElementById('planList').innerHTML = (d.study_plan || []).map(p => \`
-      <div class="day-card">
-        <div class="day-head">
-          <span class="day-num">Day \${p.day}</span>
-          <span class="day-focus">\${p.focus}</span>
-        </div>
-        \${(p.tasks || []).map(t => \`<div class="day-task">\${t}</div>\`).join('')}
-      </div>\`).join('');
+    document.getElementById('planList').innerHTML = (d.study_plan || []).map(p => 
+      '<div class="day-card">' +
+        '<div class="day-head">' +
+          '<span class="day-num">Day ' + p.day + '</span>' +
+          '<span class="day-focus">' + p.focus + '</span>' +
+        '</div>' +
+        (p.tasks || []).map(t => '<div class="day-task">' + t + '</div>').join('') +
+      '</div>').join('');
 
-    document.getElementById('pqsList').innerHTML = (d.predicted_questions || []).map(q => \`
-      <div class="q-card">
-        <div class="q-meta">
-          <span class="badge badge-info">\${q.type}</span>
-          <span class="badge badge-\${q.confidence==='high'?'high':'mid'}">\${q.confidence} chance</span>
-          <span style="font-size:11px;color:var(--vscode-descriptionForeground)">\${q.topic}</span>
-        </div>
-        <div class="q-text">\${q.question}</div>
-        <div class="q-hint">Hint: \${q.hint}</div>
-      </div>\`).join('');
+    document.getElementById('pqsList').innerHTML = (d.predicted_questions || []).map(q => 
+      '<div class="q-card">' +
+        '<div class="q-meta">' +
+          '<span class="badge badge-info">' + q.type + '</span>' +
+          '<span class="badge badge-' + (q.confidence === 'high' ? 'high' : 'mid') + '">' + q.confidence + ' chance</span>' +
+          '<span style="font-size:11px;color:var(--vscode-descriptionForeground)">' + q.topic + '</span>' +
+        '</div>' +
+        '<div class="q-text">' + q.question + '</div>' +
+        '<div class="q-hint">Hint: ' + q.hint + '</div>' +
+      '</div>').join('');
 
-    document.getElementById('bookList').innerHTML = (d.book_mapping || []).map(c => \`
-      <div class="book-row">
-        <div class="ch-circle">\${c.chapter}</div>
-        <div class="book-info">
-          <div class="book-title">\${c.title} <span class="badge badge-\${c.priority}">\${c.priority}</span></div>
-          <div class="book-topics">\${(c.topics_covered || []).join(', ')} &nbsp;·&nbsp; pp. \${c.pages}</div>
-          <div class="book-hint">Focus: \${c.key_sections}</div>
-        </div>
-      </div>\`).join('');
+    document.getElementById('bookList').innerHTML = (d.book_mapping || []).map(c => 
+      '<div class="book-row">' +
+        '<div class="ch-circle">' + c.chapter + '</div>' +
+        '<div class="book-info">' +
+          '<div class="book-title">' + c.title + ' <span class="badge badge-' + c.priority + '">' + c.priority + '</span></div>' +
+          '<div class="book-topics">' + (c.topics_covered || []).join(', ') + ' &nbsp;·&nbsp; pp. ' + c.pages + '</div>' +
+          '<div class="book-hint">Focus: ' + c.key_sections + '</div>' +
+        '</div>' +
+      '</div>').join('');
 
     document.getElementById('results').classList.remove('hidden');
   }
