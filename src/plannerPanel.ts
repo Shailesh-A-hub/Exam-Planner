@@ -71,21 +71,16 @@ export class PlannerPanel {
   }
 
   private async _runGeneration(data: any, apiKey: string) {
-    const { courseCode, courseName, portion, examType, examPattern, book, days, campus } = data;
+    const { courseCode, courseName, portion, examType, book, days, campus } = data;
 
-    const patternNote = examPattern === '10x10'
-      ? 'IMPORTANT: This exam has 10 questions worth 10 marks each (no 16-mark or 2-mark). ALL predicted questions must be 10-mark questions only.'
-      : examPattern === '16/8/2'
-      ? 'This exam follows the classic VIT pattern: 16-mark, 8-mark, and 2-mark questions.'
-      : 'This exam has short answer questions worth 5 marks each.';
-
-    const qType = examPattern === '10x10' ? '10-mark' : examPattern === '5mark' ? '5-mark' : '16-mark|8-mark|2-mark';
+    const patternNote = 'IMPORTANT: This exam has 10 questions worth 10 marks each. ALL predicted questions must be 10-mark questions only.';
+    const qType = '10-mark';
 
     const prompt = `You are an expert VIT exam coach for ECE students at VIT ${campus}. The student is preparing for:
 
 Course: ${courseName} (${courseCode})
 Exam: ${examType}
-Exam Pattern: ${examPattern}
+Exam Pattern: 10 questions x 10 marks each
 Portion: ${portion}
 Textbook: ${book}
 Days available: ${days}
@@ -98,7 +93,7 @@ Based on your knowledge of typical ${courseName} PYQ patterns at VIT (from vitpa
 Return ONLY a JSON object with this exact structure (no markdown, no backticks, no extra text):
 {
   "papers_found": <number 5-15>,
-  "summary": "<2 sentence exam strategy tip tailored to the ${examPattern} pattern>",
+  "summary": "<2 sentence exam strategy tip for 10x10 pattern>",
   "topics": [
     {"name": "<topic>", "freq": <1-10>, "priority": "high|mid|low", "units": "<unit>", "marks": "<typical marks asked in this pattern>"}
   ],
@@ -249,6 +244,8 @@ Include 8-12 topics, exactly ${days} days in plan (3 tasks/day), exactly 10 pred
   .hidden { display: none !important; }
   .marks-tag { font-size: 10px; color: var(--vscode-descriptionForeground); }
   .api-link { color: var(--vscode-textLink-foreground); cursor: pointer; text-decoration: underline; font-size: 12px; }
+  .module-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; background: var(--vscode-input-background); border: 1px solid var(--vscode-input-border, #555); border-radius: 4px; padding: 5px 8px; }
+  .mod-label { font-size: 10px; color: var(--vscode-descriptionForeground); white-space: nowrap; }
 </style>
 </head>
 <body>
@@ -271,16 +268,8 @@ Include 8-12 topics, exactly ${days} days in plan (3 tasks/day), exactly 10 pred
       </select>
     </div>
   </div>
-  <div class="form-grid">
-    <div><label>Exam pattern</label>
-      <select id="examPattern">
-        <option value="10x10">10 questions × 10 marks each</option>
-        <option value="16/8/2">Classic VIT (16 / 8 / 2 marks)</option>
-        <option value="5mark">Short answer (5 marks each)</option>
-      </select>
-    </div>
-    <div style="display:flex;align-items:flex-end;padding-bottom:2px;font-size:11px;color:var(--vscode-descriptionForeground);">AI will tailor predicted questions to match your exact pattern.</div>
-  </div>
+
+
   <div class="form-grid3">
     <div><label>Textbook</label><input id="book" type="text" placeholder="e.g. Oppenheim & Willsky" /></div>
     <div><label>Campus</label>
@@ -353,7 +342,6 @@ Include 8-12 topics, exactly ${days} days in plan (3 tasks/day), exactly 10 pred
       courseName: document.getElementById('courseName').value.trim(),
       portion: document.getElementById('portion').value.trim(),
       examType: document.getElementById('examType').value,
-      examPattern: document.getElementById('examPattern').value,
       book: document.getElementById('book').value.trim(),
       campus: document.getElementById('campus').value,
       days: parseInt(document.getElementById('days').value) || 7
