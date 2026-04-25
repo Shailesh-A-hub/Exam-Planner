@@ -88,12 +88,12 @@ Campus: VIT ${campus}
 
 ${patternNote}
 
-Based on your knowledge of typical ${courseName} PYQ patterns at VIT (from vitpapervault.in, papers.codechefvit.com, GitHub VIT-Papers repo) and the standard VIT syllabus for this course, generate a comprehensive study analysis.
+Based on your knowledge of ${courseName} PYQ patterns at VIT ${campus} (from vitpapervault.in, papers.codechefvit.com, GitHub VIT-Papers repo), analyse ONLY the most recent 2 years of question papers (2023-2024 and 2024-2025 academic years). IGNORE papers older than 2 years — VIT syllabus changes frequently and older papers may not reflect the current syllabus.
 
 Return ONLY a JSON object with this exact structure (no markdown, no backticks, no extra text):
 {
-  "papers_found": <number 5-15>,
-  "summary": "<2 sentence exam strategy tip for 10x10 pattern>",
+  "papers_found": <number 2-6>,
+  "summary": "<2 sentence exam strategy tip for 10x10 pattern based only on recent 2 year PYQ trends>",
   "topics": [
     {"name": "<topic>", "freq": <1-10>, "priority": "high|mid|low", "units": "<unit>", "marks": "<typical marks asked in this pattern>"}
   ],
@@ -108,7 +108,8 @@ Return ONLY a JSON object with this exact structure (no markdown, no backticks, 
   ]
 }
 
-Include 8-12 topics, exactly ${days} days in plan (3 tasks/day), exactly 10 predicted questions matching the exam pattern, 5-7 book chapters. Be specific to ${courseName} at VIT.`;
+Include 8-12 topics, exactly ${days} days in plan (3 tasks/day), exactly 10 predicted questions matching the exam pattern, 5-7 book chapters. Base ALL frequency and priority rankings strictly on the last 2 years of PYQs. Be specific to ${courseName} at VIT ${campus}.`;
+
 
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
       method: 'POST',
