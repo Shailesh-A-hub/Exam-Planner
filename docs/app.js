@@ -228,6 +228,14 @@ async function generate() {
       '\n\nNo papers found on GitHub. Use your knowledge of ' + courseName +
       ' PYQ patterns from papers.codechefvit.com, restricting to 2023-2025 only.';
 
+    // VIT ECE official syllabus reference — keeps AI on the correct topics/languages
+    var syllabusNote = '\n\nIMPORTANT SYLLABUS CONSTRAINT: Refer to the official VIT ECE syllabus at ' +
+      'https://vit.ac.in/wp-content/uploads/2024/05/AY_2022-23_BEC.pdf for the exact topics, ' +
+      'units, and programming languages for ECE courses. For example, BECE204L (Microprocessors and ' +
+      'Microcontrollers) covers ONLY 8085/8086 Assembly Language programming — do NOT include ' +
+      'Embedded C or ARM unless explicitly listed in the syllabus for this course code. ' +
+      'Always cross-check topics against the official VIT syllabus PDF before generating questions.';
+
     var prompt = 'You are an expert VIT exam coach. The student is preparing for:\n\n' +
       'Course: ' + courseName + ' (' + courseCode + ')\n' +
       'Exam: ' + examType + '\n' +
@@ -237,7 +245,7 @@ async function generate() {
       'Days available: ' + days + '\n' +
       'Campus: VIT ' + campus + '\n\n' +
       'IMPORTANT: ALL predicted questions must be 10-mark questions only.' +
-      weightageNote + papersNote + '\n\n' +
+      syllabusNote + weightageNote + papersNote + '\n\n' +
       'Based ONLY on the last 2 years of PYQ papers (2023-2024 and 2024-2025). IGNORE older papers.\n\n' +
       'Return ONLY a JSON object (no markdown, no backticks):\n' +
       '{"papers_found":<number>,"summary":"<2 sentence strategy>",' +
@@ -317,17 +325,35 @@ function renderResults(d) {
       '</div>';
   }).join('');
 
+  // Store courseName globally so answerQuestion can use it
+  window._currentCourse = courseName + ' (' + courseCode + ')';
+
+  var qIdx = 0;
   document.getElementById('pqsList').innerHTML = (d.predicted_questions || []).map(function (q) {
-    return '<div class="q-card">' +
+    var idx = qIdx++;
+    return '<div class="q-card" id="qcard-' + idx + '">' +
       '<div class="q-meta">' +
       '<span class="badge2 b-info">' + esc(q.type) + '</span>' +
       '<span class="badge2 b-' + (q.confidence === 'high' ? 'high' : 'mid') + '">' + esc(q.confidence) + ' chance</span>' +
       '<span style="font-size:11px;color:var(--muted)">' + esc(q.topic) + '</span>' +
+      '<button type="button" class="gemini-btn" data-q-idx="' + idx + '" title="Ask Gemini to answer this question">✨ Ask Gemini</button>' +
       '</div>' +
       '<div class="q-text">' + esc(q.question) + '</div>' +
       '<div class="q-hint">Hint: ' + esc(q.hint) + '</div>' +
+      '<div class="q-answer hidden" id="qans-' + idx + '"></div>' +
       '</div>';
   }).join('');
+
+  // Store questions for answer lookup
+  window._currentQuestions = d.predicted_questions || [];
+
+  // Event delegation for Gemini answer buttons
+  document.getElementById('pqsList').addEventListener('click', function (e) {
+    var btn = e.target.closest('.gemini-btn');
+    if (!btn) return;
+    var idx = parseInt(btn.getAttribute('data-q-idx'));
+    answerQuestion(idx, btn);
+  });
 
   document.getElementById('bookList').innerHTML = (d.book_mapping || []).map(function (c) {
     return '<div class="book-row">' +
@@ -345,4 +371,67 @@ function renderResults(d) {
 
 function esc(str) {
   return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// ── Gemini Answer ─────────────────────────────────────────────────
+async function answerQuestion(idx, btn) {
+  var apiKey = localStorage.getItem(KEY_STORE) || '';
+  if (!apiKey) { showError('API key not set.'); return; }
+
+  var q = (window._currentQuestions || [])[idx];
+  if (!q) return;
+
+  var ansBox = document.getElementById('qans-' + idx);
+  if (!ansBox) return;
+
+  // Toggle — if already showing answer, hide it
+  if (!ansBox.classList.contains('hidden') && ansBox.textContent) {
+    ansBox.classList.add('hidden');
+    btn.textContent = '✨ Ask Gemini';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = '⏳ Thinking...';
+  ansBox.classList.remove('hidden');
+  ansBox.innerHTML = '<div class="ans-loading">Generating model answer...</div>';
+
+  var course = window._currentCourse || 'VIT exam';
+  var prompt = 'You are a VIT university exam expert. Write a complete, detailed model answer for this 10-mark exam question from ' + course + ':\n\n' +
+    'Question: ' + q.question + '\n\n' +
+    'Requirements:\n' +
+    '- Write a proper 10-mark answer (aim for ~400-600 words or appropriate length)\n' +
+    '- Use clear headings/subheadings where needed\n' +
+    '- Include diagrams described in text if applicable (e.g. "[Block Diagram: CPU connected to Memory..."]\n' +
+    '- For programming questions, write complete correct code with explanation\n' +
+    '- For Assembly language questions, use 8085/8086 Assembly ONLY — no C code unless specifically asked\n' +
+    '- Be precise and exam-ready. Format for readability.';
+
+  try {
+    var res = await fetch(
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }] })
+      }
+    );
+    if (!res.ok) { var e = await res.json(); throw new Error(e?.error?.message || 'API error'); }
+    var result = await res.json();
+    var text = result.candidates?.[0]?.content?.parts?.[0]?.text || 'No answer generated.';
+    // Convert markdown-like formatting to HTML
+    var html = text
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/^#{1,3}\s+(.+)$/gm, '<div class="ans-heading">$1</div>')
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+      .replace(/\n/g, '<br>');
+    ansBox.innerHTML = '<div class="ans-body">' + html + '</div>';
+    btn.textContent = '✨ Hide Answer';
+  } catch (err) {
+    ansBox.innerHTML = '<div class="ans-error">Error: ' + esc(err.message) + '</div>';
+    btn.textContent = '✨ Ask Gemini';
+  } finally {
+    btn.disabled = false;
+  }
 }

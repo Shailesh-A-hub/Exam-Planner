@@ -310,7 +310,38 @@ select { appearance: none; -webkit-appearance: none; cursor: pointer; }
 }
 .footer a { color: var(--accent2); }
 
+/* ── Gemini Answer button ──────────────────────────────── */
+.gemini-btn {
+  margin-left: auto; background: linear-gradient(135deg, #4f46e5, #7c6fff);
+  border: none; color: #fff; border-radius: 6px; padding: 4px 12px;
+  font-size: 11px; font-weight: 600; cursor: pointer; font-family: inherit;
+  transition: opacity .2s; white-space: nowrap;
+}
+.gemini-btn:hover { opacity: 0.85; }
+.gemini-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.q-answer {
+  margin-top: 14px; border-top: 1px solid var(--border); padding-top: 14px;
+}
+.ans-loading { color: var(--muted); font-size: 13px; font-style: italic; }
+.ans-error { color: var(--high); font-size: 13px; }
+.ans-body {
+  font-size: 13px; line-height: 1.75; color: var(--text);
+  background: rgba(124,111,255,0.05); border-radius: 8px;
+  padding: 14px 16px; border: 1px solid rgba(124,111,255,0.15);
+}
+.ans-body code {
+  background: rgba(255,255,255,0.06); border-radius: 4px;
+  padding: 1px 5px; font-family: 'Fira Code', monospace; font-size: 12px;
+}
+.ans-body strong { color: var(--accent2); }
+.ans-heading {
+  font-size: 13px; font-weight: 700; color: var(--accent2);
+  margin: 10px 0 4px; padding-bottom: 2px; border-bottom: 1px solid var(--border);
+}
+
 .hidden { display: none !important; }
+
 
 /* ── Print ────────────────────────────────────────────── */
 @media print {
