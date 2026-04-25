@@ -346,7 +346,7 @@ Include 8-12 topics, exactly ${days} days in plan (3 tasks/day), exactly 10 pred
   <div style="margin-bottom:10px;">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
       <span style="font-size:11px;color:var(--vscode-descriptionForeground);">Module-wise weightage <span style="font-size:10px;opacity:0.6;">(optional — questions per unit)</span></span>
-      <button type="button" class="btn btn-secondary" onclick="addModule()" style="font-size:11px;padding:3px 10px;">+ Add unit</button>
+      <button type="button" id="addUnitBtn" class="btn btn-secondary" style="font-size:11px;padding:3px 10px;">+ Add unit</button>
     </div>
     <div id="moduleRows"></div>
   </div>
@@ -354,12 +354,12 @@ Include 8-12 topics, exactly ${days} days in plan (3 tasks/day), exactly 10 pred
   <div style="margin-bottom:12px;">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
       <span style="font-size:11px;color:var(--vscode-descriptionForeground);">Reference books <span style="font-size:10px;opacity:0.6;">(add all books used for this course)</span></span>
-      <button type="button" class="btn btn-secondary" onclick="addBook()" style="font-size:11px;padding:3px 10px;">+ Add book</button>
+      <button type="button" id="addBookBtn" class="btn btn-secondary" style="font-size:11px;padding:3px 10px;">+ Add book</button>
     </div>
     <div id="bookRows">
       <div class="module-row" id="book-1">
         <input type="text" placeholder="e.g. Mazidi - The 8051 Microcontroller" class="book-input" style="flex:1;" />
-        <button type="button" onclick="removeBook('book-1')" style="background:transparent;border:none;color:var(--vscode-descriptionForeground);cursor:pointer;font-size:14px;padding:0 4px;">x</button>
+        <button type="button" data-remove-book="book-1" style="background:transparent;border:none;color:var(--vscode-descriptionForeground);cursor:pointer;font-size:14px;padding:0 4px;">x</button>
       </div>
     </div>
   </div>
@@ -374,17 +374,17 @@ Include 8-12 topics, exactly ${days} days in plan (3 tasks/day), exactly 10 pred
     </div>
     <div><label>Days to study</label><input id="days" type="number" value="7" min="1" max="30" /></div>
   </div>
-  <button class="btn btn-primary" id="generateBtn" onclick="generate()">Generate Study Plan</button>
+  <button type="button" class="btn btn-primary" id="generateBtn">Generate Study Plan</button>
   <div style="margin-top:10px;text-align:center">
     <span style="font-size:11px;color:var(--vscode-descriptionForeground)">No API key? </span>
-    <span class="api-link" onclick="setApiKey()">Set Gemini API key</span>
+    <span class="api-link" id="setApiKeyLink">Set Gemini API key</span>
   </div>
 </div>
 
 <div id="errorBox" class="error-box hidden"></div>
 
 <div id="loadingBox" class="loading hidden">
-  <div><span class="spinner"></span><span id="loadMsg">Analysing PYQ papers…</span></div>
+  <div><span class="spinner"></span><span id="loadMsg">Analysing PYQ papers...</span></div>
 </div>
 
 <div id="results" class="hidden">
@@ -395,16 +395,16 @@ Include 8-12 topics, exactly ${days} days in plan (3 tasks/day), exactly 10 pred
   </div>
   <div id="summaryBox" class="summary-box"></div>
   <div class="tabs">
-    <button class="tab active" onclick="showTab('freq',this)">Topic frequency</button>
-    <button class="tab" onclick="showTab('plan',this)">Study plan</button>
-    <button class="tab" onclick="showTab('pqs',this)">Predicted Qs</button>
-    <button class="tab" onclick="showTab('book',this)">Book mapping</button>
+    <button type="button" class="tab active" data-tab="freq">Topic frequency</button>
+    <button type="button" class="tab" data-tab="plan">Study plan</button>
+    <button type="button" class="tab" data-tab="pqs">Predicted Qs</button>
+    <button type="button" class="tab" data-tab="book">Book mapping</button>
   </div>
   <div id="tab-freq"><div id="topicList"></div></div>
   <div id="tab-plan" class="hidden"><div id="planList"></div></div>
   <div id="tab-pqs" class="hidden"><div id="pqsList"></div></div>
   <div id="tab-book" class="hidden"><div id="bookList"></div></div>
-  <button class="pdf-btn" onclick="window.print()">Export as PDF (File > Print > Save as PDF)</button>
+  <button type="button" class="pdf-btn" id="pdfBtn">Export as PDF (File > Print > Save as PDF)</button>
 </div>
 
 <script>
@@ -420,64 +420,128 @@ Include 8-12 topics, exactly ${days} days in plan (3 tasks/day), exactly 10 pred
   ];
   let loadTicker;
 
-  function showTab(name, el) {
-    ['freq','plan','pqs','book'].forEach(t => document.getElementById('tab-'+t).classList.add('hidden'));
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.getElementById('tab-'+name).classList.remove('hidden');
-    el.classList.add('active');
-  }
+  // ── Tab switching ───────────────────────────────────────────────
+  document.querySelectorAll('.tab').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var name = btn.getAttribute('data-tab');
+      ['freq','plan','pqs','book'].forEach(function(t) {
+        document.getElementById('tab-'+t).classList.add('hidden');
+      });
+      document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+      document.getElementById('tab-'+name).classList.remove('hidden');
+      btn.classList.add('active');
+    });
+  });
 
-  function setApiKey() { vscode.postMessage({ command: 'setApiKey' }); }
+  // ── Static buttons ──────────────────────────────────────────────
+  document.getElementById('setApiKeyLink').addEventListener('click', function() {
+    vscode.postMessage({ command: 'setApiKey' });
+  });
 
-  let bookCount = 1;
-  function addBook() {
+  document.getElementById('generateBtn').addEventListener('click', function() { generate(); });
+  document.getElementById('pdfBtn').addEventListener('click', function() { window.print(); });
+
+  // ── Books ───────────────────────────────────────────────────────
+  var bookCount = 1;
+
+  document.getElementById('addBookBtn').addEventListener('click', function() {
     bookCount++;
-    const id = 'book-' + bookCount;
-    const row = document.createElement('div');
+    var id = 'book-' + bookCount;
+    var row = document.createElement('div');
     row.className = 'module-row';
     row.id = id;
-    row.innerHTML = '<input type="text" placeholder="e.g. Morris Mano - Digital Design" class="book-input" style="flex:1;" />' +
-      '<button onclick="removeBook(\'' + id + '\')" style="background:transparent;border:none;color:var(--vscode-descriptionForeground);cursor:pointer;font-size:14px;padding:0 4px;">x</button>';
+    var inp = document.createElement('input');
+    inp.type = 'text';
+    inp.placeholder = 'e.g. Morris Mano - Digital Design';
+    inp.className = 'book-input';
+    inp.style.flex = '1';
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = 'x';
+    btn.setAttribute('data-remove-book', id);
+    btn.style.cssText = 'background:transparent;border:none;color:var(--vscode-descriptionForeground);cursor:pointer;font-size:14px;padding:0 4px;';
+    row.appendChild(inp);
+    row.appendChild(btn);
     document.getElementById('bookRows').appendChild(row);
-  }
-  function removeBook(id) {
-    const el = document.getElementById(id);
+  });
+
+  // Event delegation for remove book
+  document.getElementById('bookRows').addEventListener('click', function(e) {
+    var btn = e.target.closest('[data-remove-book]');
+    if (!btn) return;
+    var id = btn.getAttribute('data-remove-book');
+    var el = document.getElementById(id);
     if (el && document.querySelectorAll('.book-input').length > 1) el.remove();
-  }
+  });
+
   function getBooks() {
     return Array.from(document.querySelectorAll('.book-input'))
-      .map(el => el.value.trim()).filter(v => v.length > 0);
+      .map(function(el) { return el.value.trim(); }).filter(function(v) { return v.length > 0; });
   }
 
-  let moduleCount = 0;
+  // ── Modules ─────────────────────────────────────────────────────
+  var moduleCount = 0;
 
-  function addModule() {
+  document.getElementById('addUnitBtn').addEventListener('click', function() {
     moduleCount++;
-    const row = document.createElement('div');
+    var id = 'mod-' + moduleCount;
+    var row = document.createElement('div');
     row.className = 'module-row';
-    row.id = 'mod-' + moduleCount;
-    row.innerHTML = '<span class="mod-label">Unit</span>' +
-      '<input type="text" placeholder="e.g. Unit 1 - Microprocessor" class="mod-name" style="flex:1;" />' +
-      '<span class="mod-label">Questions</span>' +
-      '<input type="number" value="2" min="0" max="10" class="mod-qs" style="width:50px;" />' +
-      '<button type="button" onclick="removeModule(' + moduleCount + ')" style="background:transparent;border:none;color:var(--vscode-descriptionForeground);cursor:pointer;font-size:14px;padding:0 4px;">x</button>';
-    document.getElementById('moduleRows').appendChild(row);
-  }
+    row.id = id;
 
-  function removeModule(id) {
-    const el = document.getElementById('mod-' + id);
+    var lbl1 = document.createElement('span');
+    lbl1.className = 'mod-label';
+    lbl1.textContent = 'Unit';
+
+    var nameInp = document.createElement('input');
+    nameInp.type = 'text';
+    nameInp.placeholder = 'e.g. Unit 1 - Microprocessor';
+    nameInp.className = 'mod-name';
+    nameInp.style.flex = '1';
+
+    var lbl2 = document.createElement('span');
+    lbl2.className = 'mod-label';
+    lbl2.textContent = 'Questions';
+
+    var qsInp = document.createElement('input');
+    qsInp.type = 'number';
+    qsInp.value = '2';
+    qsInp.min = '0';
+    qsInp.max = '10';
+    qsInp.className = 'mod-qs';
+    qsInp.style.width = '50px';
+
+    var rmBtn = document.createElement('button');
+    rmBtn.type = 'button';
+    rmBtn.textContent = 'x';
+    rmBtn.setAttribute('data-remove-mod', id);
+    rmBtn.style.cssText = 'background:transparent;border:none;color:var(--vscode-descriptionForeground);cursor:pointer;font-size:14px;padding:0 4px;';
+
+    row.appendChild(lbl1);
+    row.appendChild(nameInp);
+    row.appendChild(lbl2);
+    row.appendChild(qsInp);
+    row.appendChild(rmBtn);
+    document.getElementById('moduleRows').appendChild(row);
+  });
+
+  // Event delegation for remove module
+  document.getElementById('moduleRows').addEventListener('click', function(e) {
+    var btn = e.target.closest('[data-remove-mod]');
+    if (!btn) return;
+    var id = btn.getAttribute('data-remove-mod');
+    var el = document.getElementById(id);
     if (el) el.remove();
-  }
+  });
 
   function getModuleWeightage() {
-    const rows = document.getElementById('moduleRows').querySelectorAll('.module-row');
-    const result = [];
-    rows.forEach(row => {
-      const nameEl = row.querySelector('.mod-name');
-      const qsEl = row.querySelector('.mod-qs');
+    var result = [];
+    document.getElementById('moduleRows').querySelectorAll('.module-row').forEach(function(row) {
+      var nameEl = row.querySelector('.mod-name');
+      var qsEl = row.querySelector('.mod-qs');
       if (!nameEl || !qsEl) return;
-      const name = nameEl.value.trim();
-      const qs = parseInt(qsEl.value) || 0;
+      var name = nameEl.value.trim();
+      var qs = parseInt(qsEl.value) || 0;
       if (name && qs > 0) result.push({ module: name, questions: qs });
     });
     return result;
