@@ -1,0 +1,76 @@
+{
+  "name": "exam",
+  "displayName": "Exam – VIT AI Study Planner",
+  "description": "AI-powered exam preparation: analyses VIT PYQ papers, maps your textbook, generates predicted questions and a day-by-day study plan.",
+  "version": "1.0.0",
+  "publisher": "your-publisher-name",
+  "engines": { "vscode": "^1.85.0" },
+  "categories": ["Education", "Other"],
+  "icon": "media/icon.png",
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "exam.openPlanner",
+        "title": "Exam: Open Study Planner"
+      },
+      {
+        "command": "exam.setApiKey",
+        "title": "Exam: Set Gemini API Key"
+      }
+    ],
+    "configuration": {
+      "title": "Exam",
+      "properties": {
+        "exam.geminiApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "Your Google Gemini API key (get one at aistudio.google.com)"
+        },
+        "exam.defaultCampus": {
+          "type": "string",
+          "enum": ["Vellore", "Chennai", "Bhopal", "AP"],
+          "default": "Vellore",
+          "description": "Your VIT campus"
+        }
+      }
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "exam-sidebar",
+          "title": "Exam",
+          "icon": "media/sidebar-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "exam-sidebar": [
+        {
+          "type": "webview",
+          "id": "exam.plannerView",
+          "name": "Study Planner"
+        }
+      ]
+    },
+    "menus": {
+      "commandPalette": [
+        { "command": "exam.openPlanner" },
+        { "command": "exam.setApiKey" }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.3.0",
+    "@vscode/vsce": "^2.22.0"
+  }
+}
